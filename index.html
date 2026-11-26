@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CASH STORE - كاش ستور | شاشة الكاشير</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; font-family: 'Cairo', sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    header {
+      background: #0b1120; border-bottom: 1px solid var(--border);
+      padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      background: linear-gradient(135deg, #2563eb, #10b981);
+      padding: 8px 14px; border-radius: 10px; font-weight: 800; font-size: 18px; letter-spacing: 0.5px;
+    }
+    .badge { background: #1e293b; border: 1px solid var(--border); padding: 6px 12px; border-radius: 999px; font-size: 13px; }
+    .dot { height: 9px; width: 9px; background: var(--success); border-radius: 50%; display: inline-block; margin-left: 6px; }
+    .container { max-width: 1300px; margin: 20px auto; padding: 0 20px; }
+    .sim-bar {
+      background: #172554; border: 1px solid #1d4ed8; border-radius: 12px;
+      padding: 12px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px;
+    }
+    .card h4 { margin: 0 0 8px 0; color: var(--muted); font-size: 14px; font-weight: 600; }
+    .card .val { font-size: 26px; font-weight: 800; }
+    .card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .main-grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; margin-top: 12px; }
+    input, select {
+      width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+      background: #0f172a; color: var(--text); font-size: 15px;
+    }
+    button {
+      border: none; border-radius: 8px; padding: 10px 16px; font-weight: 700; cursor: pointer; font-size: 14px; transition: 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; width: 100%; margin-top: 16px; font-size: 16px; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-success { background: var(--success); color: #052e16; }
+    .btn-warning { background: var(--warning); color: #451a03; }
+    .btn-danger { background: var(--danger); color: white; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { text-align: right; padding: 12px 10px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    th { color: var(--muted); font-weight: 600; }
+    .status-pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-block; }
+    .st-completed { background: rgba(16,185,129,0.15); color: #34d399; }
+    .st-pending { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .st-fraud { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid #ef4444; }
+    .ussd-box {
+      margin-top: 14px; padding: 12px; background: #020617; border: 1px dashed #38bdf8;
+      border-radius: 8px; text-align: center; display: none;
+    }
+    .ussd-code { font-size: 20px; font-weight: 800; color: #38bdf8; direction: ltr; margin: 6px 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">CASH STORE | كاش ستور</div>
+    <div>
+      <div id="storeName" style="font-weight:700; font-size:16px;">جاري الاتصال بالسيرفر...</div>
+      <div style="font-size:12px; color:var(--muted);">باقة المحلات الاحترافية (SaaS)</div>
+    </div>
+  </div>
+  <div style="display:flex; gap:10px; align-items:center;">
+    <span class="badge"><span class="dot" id="wsDot"></span><span id="wsStatus">متصل لحظياً بالسيرفر</span></span>
+    <button onclick="loadData()" style="background:#334155; color:white;">تحديث البيانات</button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- شريط اختبار محاكاة تطبيق الأندرويد -->
+  <div class="sim-bar">
+    <div>
+      <strong>📱 محاكاة تطبيق الأندرويد (اختبار وصول رسالة SMS للمحل):</strong>
+      <div style="font-size:12px; color:#bfdbfe;">جرّب وصول رسالة تحويل حقيقية من عميل أو رسالة وهمية برصيد خاطئ</div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn-success" onclick="simulateSms(false)">+ محاكاة استلام 500 ج (سليمة)</button>
+      <button class="btn-danger" onclick="simulateSms(true)">! محاكاة رسالة وهمية (رصيد غير مطابق)</button>
+    </div>
+  </div>
+
+  <!-- بطاقات الأرصدة -->
+  <div class="grid-cards" id="cardsGrid">
+    <div class="card">
+      <h4>💵 رصيد الدرج النقدي</h4>
+      <div class="val" id="drawerBalance">0.00 ج.م</div>
+      <div class="sub">الكاش الفعلي المتاح بالدرج</div>
+    </div>
+    <div class="card">
+      <h4>📈 أرباح العمولات اليوم</h4>
+      <div class="val" style="color:var(--success);" id="totalCommissions">0.00 ج.م</div>
+      <div class="sub">صافي عمولات السحب والإيداع</div>
+    </div>
+    <div id="walletsContainer" style="display:contents;"></div>
+  </div>
+
+  <!-- القسم الرئيسي -->
+  <div class="main-grid">
+    <!-- نموذج إيداع (تحويل لعميل) -->
+    <div class="card">
+      <h3 style="margin-top:0;">📤 تنفيذ عملية إيداع (تحويل لعميل)</h3>
+      <label>اختر المحفظة / الشريحة</label>
+      <select id="walletSelect"></select>
+
+      <label>رقم محفظة العميل</label>
+      <input type="text" id="clientPhone" placeholder="مثال: 01099887766" maxlength="11" />
+
+      <label>المبلغ المطلوب تحويله (ج.م)</label>
+      <input type="number" id="depositAmount" placeholder="مثال: 1000" oninput="calcCommission()" />
+
+      <label>عمولة المحل (ج.م)</label>
+      <input type="number" id="depositCommission" value="10" />
+
+      <button class="btn-primary" onclick="submitDeposit()">تنفيذ التحويل وتجهيز كود USSD</button>
+
+      <div class="ussd-box" id="ussdBox">
+        <div style="font-size:12px; color:var(--muted);">تم إرسال الأمر للهاتف — كود الاتصال المباشر:</div>
+        <div class="ussd-code" id="ussdText">*9*7*...#</div>
+        <div style="font-size:12px; color:#34d399;" id="ussdSlot">شريحة رقم 1</div>
+      </div>
+    </div>
+
+    <!-- جدول العمليات اللحظي -->
+    <div class="card">
+      <h3 style="margin-top:0;">📋 سجل العمليات الواردة والصادرة (مباشر)</h3>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>النوع</th>
+              <th>المحفظة</th>
+              <th>رقم العميل</th>
+              <th>المبلغ</th>
+              <th>العمولة</th>
+              <th>الحالة / الإجراء</th>
+            </tr>
+          </thead>
+          <tbody id="txTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
+  const STORE_ID = "store-demo-01";
+  const DEVICE_KEY = "cs_live_demo_key_123456";
+  let currentWallets = [];
+
+  const providerNames = {
+    vodafone: "فودافون كاش",
+    etisalat: "اتصالات كاش",
+    instapay: "إنستا باي"
+  };
+
+  function calcCommission() {
+    const amt = parseFloat(document.getElementById("depositAmount").value || 0);
+    document.getElementById("depositCommission").value = amt > 0 ? Math.max(5, Math.ceil(amt / 1000) * 10) : 0;
+  }
+
+  async function loadData() {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/stores/${STORE_ID}/summary`);
+      const data = await res.json();
+      document.getElementById("storeName").innerText = data.store.store_name;
+      document.getElementById("drawerBalance").innerText = Number(data.store.drawer_balance).toLocaleString() + " ج.م";
+      document.getElementById("totalCommissions").innerText = Number(data.store.total_commissions).toLocaleString() + " ج.م";
+
+      currentWallets = data.wallets;
+      const walletsDiv = document.getElementById("walletsContainer");
+      const select = document.getElementById("walletSelect");
+      walletsDiv.innerHTML = "";
+      select.innerHTML = "";
+
+      data.wallets.forEach(w => {
+        const name = providerNames[w.provider] || w.provider;
+        walletsDiv.innerHTML += `
+          <div class="card">
+            <h4>📱 ${name} (شريحة ${w.sim_slot})</h4>
+            <div class="val">${Number(w.current_balance).toLocaleString()} ج.م</div>
+            <div class="sub">${w.wallet_number}</div>
+          </div>
+        `;
+        select.innerHTML += `<option value="${w.id}">${name} - الرصيد: ${Number(w.current_balance).toLocaleString()} ج</option>`;
+      });
+
+      const tbody = document.getElementById("txTableBody");
+      tbody.innerHTML = "";
+      data.transactions.forEach(tx => {
+        const typeLabel = tx.tx_type === "withdraw" ? "⬇️ استلام تحويل (سحب)" : "⬆️ إيداع لعميل";
+        let actionHtml = `<span class="status-pill st-completed">مكتملة ✓</span>`;
+        if (tx.status === "pending_payout") {
+          actionHtml = `<button class="btn-warning" onclick="confirmPayout('${tx.id}')">صرف ${tx.amount} ج من الدرج</button>`;
+        } else if (tx.status === "fraud_alert") {
+          actionHtml = `<span class="status-pill st-fraud">⚠️ تحذير: رصيد الرسالة غير مطابق!</span>`;
+        }
+        tbody.innerHTML += `
+          <tr>
+            <td>${typeLabel}</td>
+            <td>${providerNames[tx.provider] || tx.provider}</td>
+            <td style="direction:ltr; text-align:right;">${tx.client_phone}</td>
+            <td style="font-weight:700;">${Number(tx.amount).toLocaleString()} ج.م</td>
+            <td>${Number(tx.commission).toLocaleString()} ج.م</td>
+            <td>${actionHtml}</td>
+          </tr>
+        `;
+      });
+    } catch (e) {
+      document.getElementById("storeName").innerText = "تعذر الاتصال بالسيرفر - تأكد أن الشاشة السوداء تعمل";
+    }
+  }
+
+  async function submitDeposit() {
+    const wallet_id = document.getElementById("walletSelect").value;
+    const client_phone = document.getElementById("clientPhone").value.trim();
+    const amount = parseFloat(document.getElementById("depositAmount").value);
+    const commission = parseFloat(document.getElementById("depositCommission").value || 0);
+
+    if (!client_phone || !amount || amount <= 0) {
+      alert("من فضلك أدخل رقم العميل والمبلغ بشكل صحيح");
+      return;
+    }
+
+    const res = await fetch(`${API_BASE}/api/v1/transactions/initiate-deposit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store_id: STORE_ID, wallet_id, client_phone, amount, commission })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.detail || "حدث خطأ");
+      return;
+    }
+    document.getElementById("ussdBox").style.display = "block";
+    document.getElementById("ussdText").innerText = data.ussd_code;
+    document.getElementById("ussdSlot").innerText = `جاهز للتنفيذ على شريحة رقم (${data.sim_slot})`;
+    document.getElementById("clientPhone").value = "";
+    document.getElementById("depositAmount").value = "";
+    loadData();
+  }
+
+  async function simulateSms(isFake) {
+    const vf = currentWallets.find(w => w.provider === "vodafone");
+    const oldBal = vf ? Number(vf.current_balance) : 14200;
+    const expectedBal = isFake ? 99999 : oldBal + 500;
+    const body = `تم استلام مبلغ 500 جنيه من رقم 01055554444 رصيدك الحالي هو ${expectedBal} جنيه`;
+
+    await fetch(`${API_BASE}/api/v1/device/incoming-sms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        device_api_key: DEVICE_KEY,
+        sender: "VF-Cash",
+        body: body,
+        sim_slot: 1
+      })
+    });
+    loadData();
+  }
+
+  async function confirmPayout(txId) {
+    const res = await fetch(`${API_BASE}/api/v1/transactions/${txId}/confirm-payout?commission=5`, {
+      method: "POST"
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.detail);
+      return;
+    }
+    loadData();
+  }
+
+  // الاتصال اللحظي WebSocket
+  function connectWS() {
+    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/store/${STORE_ID}`);
+    ws.onmessage = () => loadData();
+    ws.onclose = () => {
+      document.getElementById("wsDot").style.background = "#ef4444";
+      document.getElementById("wsStatus").innerText = "إعادة الاتصال...";
+      setTimeout(connectWS, 3000);
+    };
+  }
+
+  loadData();
+  connectWS();
+</script>
+</body>
+</html>
