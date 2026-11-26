@@ -294,7 +294,7 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
 
   // الاتصال اللحظي WebSocket
   function connectWS() {
-    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/store/${STORE_ID}`);
+    const ws = new WebSocket(`wss://web-production-87f4ce5d.up.railway.app/ws/store/${STORE_ID}`);
     ws.onmessage = () => loadData();
     ws.onclose = () => {
       document.getElementById("wsDot").style.background = "#ef4444";
