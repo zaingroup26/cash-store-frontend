@@ -153,6 +153,10 @@
       background: #0f172a; border: 1px solid var(--border); border-radius: 10px;
       padding: 12px; margin-bottom: 12px; font-size: 13px;
     }
+    .info-box {
+      background: #0f172a; border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px; margin-top: 12px; font-size: 12px; color: var(--muted);
+    }
     .toolbar-row {
       display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
     }
@@ -209,6 +213,10 @@
     <button class="nav-btn" id="nav-reports" onclick="switchSection('reports')">
       <span>📈</span>
       <span>التقارير والفلاتر</span>
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="switchSection('settings')">
+      <span>⚙️</span>
+      <span>الإعدادات والربط</span>
     </button>
   </aside>
 
@@ -408,14 +416,14 @@
         </div>
 
         <div class="card">
-          <h3 style="margin-top:0;">📜 سجل الورديات</h3>
+          <h3 style="margin-top:0;">📜 سجل الورديات والعهدة</h3>
           <div style="overflow-x:auto;">
             <table>
               <thead>
                 <tr>
                   <th>الكاشير</th>
-                  <th>افتتاحي</th>
-                  <th>فعلي عند الإغلاق</th>
+                  <th>الدرج (فتح / إغلاق)</th>
+                  <th>محافظ وماكينات</th>
                   <th>الفرق</th>
                   <th>الحالة</th>
                 </tr>
@@ -490,7 +498,7 @@
           <hr style="border:none; border-top:1px solid var(--border); margin:18px 0;" />
 
           <label>اختر العميل لتسجيل حركة أو تسوية</label>
-          <select id="creditCustomerSelect"></select>
+          <select id="creditCustomerSelect" onchange="renderCustomerLedger()"></select>
 
           <div class="row-inline">
             <div>
@@ -527,20 +535,39 @@
           <button class="btn-success" style="width:100%; margin-top:12px;" onclick="submitCreditMovement()">حفظ حركة الآجل</button>
         </div>
 
-        <div class="card">
-          <h3 style="margin-top:0;">📒 سجل عملاء الآجل والأرصدة</h3>
-          <div style="overflow-x:auto;">
-            <table>
-              <thead>
-                <tr>
-                  <th>العميل</th>
-                  <th>الهاتف</th>
-                  <th>الرصيد الآجل</th>
-                  <th>الوضع</th>
-                </tr>
-              </thead>
-              <tbody id="creditTableBody"></tbody>
-            </table>
+        <div class="pos-stack">
+          <div class="card">
+            <h3 style="margin-top:0;">📒 سجل عملاء الآجل والأرصدة</h3>
+            <div style="overflow-x:auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>العميل</th>
+                    <th>الهاتف</th>
+                    <th>الرصيد الآجل</th>
+                    <th>الوضع</th>
+                  </tr>
+                </thead>
+                <tbody id="creditTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top:0;">🧾 كشف حساب العميل المحدد</h3>
+            <div style="overflow-x:auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>نوع الحركة</th>
+                    <th>المصدر</th>
+                    <th>المبلغ</th>
+                    <th>التوقيت</th>
+                  </tr>
+                </thead>
+                <tbody id="creditLedgerBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -633,6 +660,34 @@
         </div>
       </div>
     </section>
+
+    <!-- قسم 8: الإعدادات والربط بالأندرويد -->
+    <section class="section-view" id="view-settings">
+      <div class="two-col-grid">
+        <div class="card">
+          <h3 style="margin-top:0;">⚙️ إعدادات المتجر والعمولات</h3>
+          <label>اسم المتجر</label>
+          <input type="text" id="settingStoreName" />
+
+          <label>اسم المسؤول / المالك</label>
+          <input type="text" id="settingOwnerName" />
+
+          <label>عمولة الصرف الافتراضية عند تأكيد الاستلام (ج.م)</label>
+          <input type="number" id="settingDefaultPayoutComm" step="0.5" min="0" />
+
+          <button class="btn-primary" onclick="saveStoreSettings()">حفظ إعدادات المتجر</button>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">🔗 بيانات الربط مع تطبيق الأندرويد</h3>
+          <div class="info-box" id="deviceBindingInfo">
+            <div><strong>معرّف المتجر (Store ID):</strong> <span id="bindStoreId">-</span></div>
+            <div style="margin-top:8px;"><strong>مفتاح الجهاز (Device API Key):</strong> <span id="bindApiKey">-</span></div>
+            <div style="margin-top:8px;"><strong>رابط استقبال الرسائل (SMS Endpoint):</strong> <span id="bindSmsUrl">-</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -643,6 +698,8 @@
   let currentWallets = [];
   let currentPeriod = "all";
   let lastFilteredTxs = [];
+  let allCreditMovements = [];
+  let defaultPayoutCommission = 5;
 
   const providerNames = {
     vodafone: "فودافون كاش",
@@ -651,6 +708,13 @@
     fawry: "فوري",
     aman: "أمان",
     pos: "POS"
+  };
+
+  const movementTypeLabels = {
+    add_receivable: "إضافة آجل لينا (+)",
+    add_payable: "إضافة آجل علينا (-)",
+    settle_receivable: "تحصيل من العميل",
+    settle_payable: "سداد للعميل"
   };
 
   function switchSection(sectionName) {
@@ -701,6 +765,32 @@
     document.getElementById("monthlyLimitInput").value = Number(w.monthly_limit || 200000);
   }
 
+  function renderCustomerLedger() {
+    const custId = document.getElementById("creditCustomerSelect").value;
+    const ledgerBody = document.getElementById("creditLedgerBody");
+    ledgerBody.innerHTML = "";
+    if (!custId) return;
+
+    const rows = allCreditMovements.filter(m => String(m.customer_id) === String(custId));
+    if (!rows.length) {
+      ledgerBody.innerHTML = `<tr><td colspan="4" style="color:var(--muted); text-align:center;">لا توجد حركات مسجلة لهذا العميل بعد</td></tr>`;
+      return;
+    }
+
+    rows.forEach(m => {
+      const srcLabel = m.settle_source === "wallet" ? "محفظة" : m.settle_source === "drawer" ? "الدرج" : "-";
+      const dtLabel = m.created_at ? String(m.created_at).replace("T", " ").slice(0, 16) : "-";
+      ledgerBody.innerHTML += `
+        <tr>
+          <td>${movementTypeLabels[m.movement_type] || m.movement_type}</td>
+          <td>${srcLabel}</td>
+          <td style="font-weight:700;">${Number(m.amount).toLocaleString()} ج.م</td>
+          <td style="color:var(--muted); font-size:12px;">${dtLabel}</td>
+        </tr>
+      `;
+    });
+  }
+
   function exportFilteredCsv() {
     const rows = [["النوع", "المحفظة", "رقم العميل", "المبلغ", "العمولة", "الحالة"]];
     lastFilteredTxs.forEach(tx => {
@@ -721,6 +811,27 @@
     a.download = `cash-store-report-${currentPeriod}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function saveStoreSettings() {
+    const store_name = document.getElementById("settingStoreName").value.trim();
+    const owner_name = document.getElementById("settingOwnerName").value.trim();
+    const default_payout_commission = parseFloat(document.getElementById("settingDefaultPayoutComm").value || 5);
+    if (!store_name || !owner_name || isNaN(default_payout_commission) || default_payout_commission < 0) {
+      alert("من فضلك أدخل بيانات المتجر وعمولة الصرف بشكل صحيح");
+      return;
+    }
+    const res = await fetch(`${API_BASE}/api/v1/stores/${STORE_ID}/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store_name, owner_name, default_payout_commission })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.detail || "تعذر حفظ الإعدادات");
+      return;
+    }
+    await loadData();
   }
 
   async function saveWalletLimits() {
@@ -877,6 +988,18 @@
       const drawerNum = Number(data.store.drawer_balance);
       document.getElementById("drawerBalance").innerText = drawerNum.toLocaleString() + " ج.م";
       document.getElementById("totalCommissions").innerText = Number(data.store.total_commissions).toLocaleString() + " ج.م";
+      defaultPayoutCommission = Number(data.store.default_payout_commission ?? 5);
+
+      // إعدادات المتجر والربط
+      const sNameEl = document.getElementById("settingStoreName");
+      const sOwnerEl = document.getElementById("settingOwnerName");
+      const sCommEl = document.getElementById("settingDefaultPayoutComm");
+      if (sNameEl && document.activeElement !== sNameEl) sNameEl.value = data.store.store_name || "";
+      if (sOwnerEl && document.activeElement !== sOwnerEl) sOwnerEl.value = data.store.owner_name || "";
+      if (sCommEl && document.activeElement !== sCommEl) sCommEl.value = defaultPayoutCommission;
+      document.getElementById("bindStoreId").innerText = data.store.id || STORE_ID;
+      document.getElementById("bindApiKey").innerText = data.store.device_api_key || DEVICE_KEY;
+      document.getElementById("bindSmsUrl").innerText = `${API_BASE}/api/v1/device/incoming-sms`;
 
       const openDrawerInput = document.getElementById("openingDrawerInput");
       if (openDrawerInput && document.activeElement !== openDrawerInput && !openDrawerInput.value) {
@@ -896,6 +1019,7 @@
         document.getElementById("activeShiftDetails").innerHTML = `
           <div><strong>الكاشير:</strong> ${activeShift.cashier_name}</div>
           <div><strong>درج بداية الوردية:</strong> ${Number(activeShift.opening_drawer).toLocaleString()} ج.م</div>
+          <div><strong>محافظ وماكينات بداية الوردية:</strong> ${Number(activeShift.opening_wallets_total || 0).toLocaleString()} ج.م</div>
           <div><strong>الدرج المتوقع حالياً:</strong> ${drawerNum.toLocaleString()} ج.م</div>
         `;
       } else {
@@ -1059,18 +1183,27 @@
         const statusLabel = s.status === "open"
           ? `<span class="status-pill st-pending">مفتوحة</span>`
           : `<span class="status-pill st-completed">مغلقة</span>`;
+        const closeDrawerText = s.closing_drawer_actual !== null && s.closing_drawer_actual !== undefined
+          ? `${Number(s.closing_drawer_actual).toLocaleString()} ج`
+          : "-";
+        const assetsText = `فتح: ${Number(s.opening_wallets_total || 0).toLocaleString()} ج` +
+          (s.closing_wallets_total !== null && s.closing_wallets_total !== undefined
+            ? ` / إغلاق: ${Number(s.closing_wallets_total).toLocaleString()} ج`
+            : "");
 
         shiftsBody.innerHTML += `
           <tr>
             <td><strong>${s.cashier_name}</strong><div style="font-size:11px; color:var(--muted);">${s.notes || ""}</div></td>
-            <td>${Number(s.opening_drawer).toLocaleString()} ج.م</td>
-            <td>${s.closing_drawer_actual !== null && s.closing_drawer_actual !== undefined ? Number(s.closing_drawer_actual).toLocaleString() + " ج.م" : "-"}</td>
+            <td>${Number(s.opening_drawer).toLocaleString()} ج / ${closeDrawerText}</td>
+            <td style="font-size:12px; color:var(--muted);">${assetsText}</td>
             <td style="font-weight:700; color:${diffColor};">${diffText}</td>
             <td>${statusLabel}</td>
           </tr>
         `;
       });
 
+      // عملاء الآجل وكشف الحساب
+      allCreditMovements = data.credit_movements || [];
       const customers = data.credit_customers || [];
       creditCustSelect.innerHTML = "";
       const creditBody = document.getElementById("creditTableBody");
@@ -1092,6 +1225,7 @@
       if (previousCustId && Array.from(creditCustSelect.options).some(opt => opt.value === previousCustId)) {
         creditCustSelect.value = previousCustId;
       }
+      renderCustomerLedger();
 
       const expenses = data.expenses || [];
       const expBody = document.getElementById("expensesTableBody");
@@ -1197,7 +1331,7 @@
   }
 
   async function confirmPayout(txId) {
-    const res = await fetch(`${API_BASE}/api/v1/transactions/${txId}/confirm-payout?commission=5`, {
+    const res = await fetch(`${API_BASE}/api/v1/transactions/${txId}/confirm-payout?commission=${encodeURIComponent(defaultPayoutCommission)}`, {
       method: "POST"
     });
     if (!res.ok) {
