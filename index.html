@@ -294,14 +294,32 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
 
   // الاتصال اللحظي WebSocket
   function connectWS() {
-    const ws = new WebSocket(`wss://web-production-87f4ce5d.up.railway.app/ws/store/${STORE_ID}`);
-    ws.onmessage = () => loadData();
-    ws.onclose = () => {
-      document.getElementById("wsDot").style.background = "#ef4444";
-      document.getElementById("wsStatus").innerText = "إعادة الاتصال...";
-      setTimeout(connectWS, 3000);
-    };
-  }
+  const ws = new WebSocket(`wss://web-production-87f4ce5d.up.railway.app/ws/store/${STORE_ID}`);
+  let pingTimer = null;
+
+  ws.onopen = () => {
+    document.getElementById("wsDot").style.background = "#22c55e";
+    document.getElementById("wsStatus").innerText = "متصل لحظياً بالسيرفر";
+    pingTimer = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send("ping");
+      }
+    }, 25000);
+  };
+
+  ws.onmessage = () => loadData();
+
+  ws.onerror = () => {
+    ws.close();
+  };
+
+  ws.onclose = () => {
+    if (pingTimer) clearInterval(pingTimer);
+    document.getElementById("wsDot").style.background = "#ef4444";
+    document.getElementById("wsStatus").innerText = "إعادة الاتصال...";
+    setTimeout(connectWS, 3000);
+  };
+}
 
   loadData();
   connectWS();
