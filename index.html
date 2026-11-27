@@ -88,7 +88,6 @@
 </header>
 
 <div class="container">
-  <!-- شريط اختبار محاكاة تطبيق الأندرويد -->
   <div class="sim-bar">
     <div>
       <strong>📱 محاكاة تطبيق الأندرويد (اختبار وصول رسالة SMS للمحل):</strong>
@@ -100,7 +99,6 @@
     </div>
   </div>
 
-  <!-- بطاقات الأرصدة -->
   <div class="grid-cards" id="cardsGrid">
     <div class="card">
       <h4>💵 رصيد الدرج النقدي</h4>
@@ -115,9 +113,7 @@
     <div id="walletsContainer" style="display:contents;"></div>
   </div>
 
-  <!-- القسم الرئيسي -->
   <div class="main-grid">
-    <!-- نموذج إيداع (تحويل لعميل) -->
     <div class="card">
       <h3 style="margin-top:0;">📤 تنفيذ عملية إيداع (تحويل لعميل)</h3>
       <label>اختر المحفظة / الشريحة</label>
@@ -141,7 +137,6 @@
       </div>
     </div>
 
-    <!-- جدول العمليات اللحظي -->
     <div class="card">
       <h3 style="margin-top:0;">📋 سجل العمليات الواردة والصادرة (مباشر)</h3>
       <div style="overflow-x:auto;">
@@ -164,7 +159,7 @@
 </div>
 
 <script>
-const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
+  const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
   const STORE_ID = "store-demo-01";
   const DEVICE_KEY = "cs_live_demo_key_123456";
   let currentWallets = [];
@@ -182,6 +177,9 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
 
   async function loadData() {
     try {
+      const select = document.getElementById("walletSelect");
+      const previousSelectedId = select.value;
+
       const res = await fetch(`${API_BASE}/api/v1/stores/${STORE_ID}/summary`);
       const data = await res.json();
       document.getElementById("storeName").innerText = data.store.store_name;
@@ -190,7 +188,6 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
 
       currentWallets = data.wallets;
       const walletsDiv = document.getElementById("walletsContainer");
-      const select = document.getElementById("walletSelect");
       walletsDiv.innerHTML = "";
       select.innerHTML = "";
 
@@ -205,6 +202,10 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
         `;
         select.innerHTML += `<option value="${w.id}">${name} - الرصيد: ${Number(w.current_balance).toLocaleString()} ج</option>`;
       });
+
+      if (previousSelectedId && Array.from(select.options).some(opt => opt.value === previousSelectedId)) {
+        select.value = previousSelectedId;
+      }
 
       const tbody = document.getElementById("txTableBody");
       tbody.innerHTML = "";
@@ -233,37 +234,51 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
   }
 
   async function submitDeposit() {
-    const wallet_id = document.getElementById("walletSelect").value;
+    const selectEl = document.getElementById("walletSelect");
+    const wallet_id = selectEl.value;
+    const selectedWalletObj = currentWallets.find(w => String(w.id) === String(wallet_id));
     const client_phone = document.getElementById("clientPhone").value.trim();
     const amount = parseFloat(document.getElementById("depositAmount").value);
     const commission = parseFloat(document.getElementById("depositCommission").value || 0);
 
-    if (!client_phone || !amount || amount <= 0) {
-      alert("من فضلك أدخل رقم العميل والمبلغ بشكل صحيح");
+    if (!wallet_id || !client_phone || !amount || amount <= 0) {
+      alert("من فضلك اختر المحفظة وأدخل رقم العميل والمبلغ بشكل صحيح");
       return;
     }
 
     const res = await fetch(`${API_BASE}/api/v1/transactions/initiate-deposit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ store_id: STORE_ID, wallet_id, client_phone, amount, commission })
+      body: JSON.stringify({
+        store_id: STORE_ID,
+        wallet_id: wallet_id,
+        provider: selectedWalletObj ? selectedWalletObj.provider : undefined,
+        client_phone,
+        amount,
+        commission
+      })
     });
     const data = await res.json();
     if (!res.ok) {
       alert(data.detail || "حدث خطأ");
       return;
     }
+
+    const walletLabel = selectedWalletObj
+      ? `${providerNames[selectedWalletObj.provider] || selectedWalletObj.provider} (شريحة ${selectedWalletObj.sim_slot})`
+      : `شريحة رقم (${data.sim_slot})`;
+
     document.getElementById("ussdBox").style.display = "block";
     document.getElementById("ussdText").innerText = data.ussd_code;
-    document.getElementById("ussdSlot").innerText = `جاهز للتنفيذ على شريحة رقم (${data.sim_slot})`;
+    document.getElementById("ussdSlot").innerText = `تم التنفيذ على: ${walletLabel}`;
     document.getElementById("clientPhone").value = "";
     document.getElementById("depositAmount").value = "";
-    loadData();
+    await loadData();
   }
 
   async function simulateSms(isFake) {
     const vf = currentWallets.find(w => w.provider === "vodafone");
-    const oldBal = vf ? Number(vf.current_balance) : 14200;
+    const oldBal = vf ? Number(vf.current_balance) : 14700;
     const expectedBal = isFake ? 99999 : oldBal + 500;
     const body = `تم استلام مبلغ 500 جنيه من رقم 01055554444 رصيدك الحالي هو ${expectedBal} جنيه`;
 
@@ -277,7 +292,7 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
         sim_slot: 1
       })
     });
-    loadData();
+    await loadData();
   }
 
   async function confirmPayout(txId) {
@@ -289,10 +304,9 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
       alert(err.detail);
       return;
     }
-    loadData();
+    await loadData();
   }
 
-// الاتصال اللحظي WebSocket
   let activeWS = null;
   let reconnectTimer = null;
 
@@ -352,6 +366,7 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
     loadData();
     connectWS();
   });
+
   loadData();
   connectWS();
 </script>
