@@ -292,35 +292,66 @@ const API_BASE = "https://web-production-87f4ce5d.up.railway.app";
     loadData();
   }
 
-  // الاتصال اللحظي WebSocket
+// الاتصال اللحظي WebSocket
+  let activeWS = null;
+  let reconnectTimer = null;
+
   function connectWS() {
-  const ws = new WebSocket(`wss://web-production-87f4ce5d.up.railway.app/ws/store/${STORE_ID}`);
-  let pingTimer = null;
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    if (activeWS && (activeWS.readyState === WebSocket.OPEN || activeWS.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
 
-  ws.onopen = () => {
-    document.getElementById("wsDot").style.background = "#22c55e";
-    document.getElementById("wsStatus").innerText = "متصل لحظياً بالسيرفر";
-    pingTimer = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send("ping");
+    const ws = new WebSocket(`wss://web-production-87f4ce5d.up.railway.app/ws/store/${STORE_ID}`);
+    activeWS = ws;
+    let pingTimer = null;
+
+    ws.onopen = () => {
+      document.getElementById("wsDot").style.background = "#22c55e";
+      document.getElementById("wsStatus").innerText = "متصل لحظياً بالسيرفر";
+      loadData();
+      pingTimer = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send("ping");
+        }
+      }, 20000);
+    };
+
+    ws.onmessage = (event) => {
+      if (event.data !== "pong") {
+        loadData();
       }
-    }, 25000);
-  };
+    };
 
-  ws.onmessage = () => loadData();
+    ws.onerror = () => {
+      ws.close();
+    };
 
-  ws.onerror = () => {
-    ws.close();
-  };
+    ws.onclose = () => {
+      if (pingTimer) clearInterval(pingTimer);
+      if (activeWS === ws) activeWS = null;
+      document.getElementById("wsDot").style.background = "#ef4444";
+      document.getElementById("wsStatus").innerText = "إعادة الاتصال...";
+      reconnectTimer = setTimeout(connectWS, 2000);
+    };
+  }
 
-  ws.onclose = () => {
-    if (pingTimer) clearInterval(pingTimer);
-    document.getElementById("wsDot").style.background = "#ef4444";
-    document.getElementById("wsStatus").innerText = "إعادة الاتصال...";
-    setTimeout(connectWS, 3000);
-  };
-}
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      loadData();
+      if (!activeWS || activeWS.readyState !== WebSocket.OPEN) {
+        connectWS();
+      }
+    }
+  });
 
+  window.addEventListener("online", () => {
+    loadData();
+    connectWS();
+  });
   loadData();
   connectWS();
 </script>
