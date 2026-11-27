@@ -220,4 +220,157 @@
         tbody.innerHTML += `
           <tr>
             <td>${typeLabel}</td>
-            <td>${providerNames[tx.provider
+            <td>${providerNames[tx.provider] || tx.provider}</td>
+            <td style="direction:ltr; text-align:right;">${tx.client_phone}</td>
+            <td style="font-weight:700;">${Number(tx.amount).toLocaleString()} ج.م</td>
+            <td>${Number(tx.commission).toLocaleString()} ج.م</td>
+            <td>${actionHtml}</td>
+          </tr>
+        `;
+      });
+    } catch (e) {
+      document.getElementById("storeName").innerText = "تعذر الاتصال بالسيرفر - تأكد أن الشاشة السوداء تعمل";
+    }
+  }
+
+  async function submitDeposit() {
+    const selectEl = document.getElementById("walletSelect");
+    const wallet_id = selectEl.value;
+    const selectedWalletObj = currentWallets.find(w => String(w.id) === String(wallet_id));
+    const client_phone = document.getElementById("clientPhone").value.trim();
+    const amount = parseFloat(document.getElementById("depositAmount").value);
+    const commission = parseFloat(document.getElementById("depositCommission").value || 0);
+
+    if (!wallet_id || !client_phone || !amount || amount <= 0) {
+      alert("من فضلك اختر المحفظة وأدخل رقم العميل والمبلغ بشكل صحيح");
+      return;
+    }
+
+    const res = await fetch(`${API_BASE}/api/v1/transactions/initiate-deposit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        store_id: STORE_ID,
+        wallet_id: wallet_id,
+        provider: selectedWalletObj ? selectedWalletObj.provider : undefined,
+        client_phone,
+        amount,
+        commission
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.detail || "حدث خطأ");
+      return;
+    }
+
+    const walletLabel = selectedWalletObj
+      ? `${providerNames[selectedWalletObj.provider] || selectedWalletObj.provider} (شريحة ${selectedWalletObj.sim_slot})`
+      : `شريحة رقم (${data.sim_slot})`;
+
+    document.getElementById("ussdBox").style.display = "block";
+    document.getElementById("ussdText").innerText = data.ussd_code;
+    document.getElementById("ussdSlot").innerText = `تم التنفيذ على: ${walletLabel}`;
+    document.getElementById("clientPhone").value = "";
+    document.getElementById("depositAmount").value = "";
+    await loadData();
+  }
+
+  async function simulateSms(isFake) {
+    const sumRes = await fetch(`${API_BASE}/api/v1/stores/${STORE_ID}/summary`);
+    const sumData = await sumRes.json();
+    const vf = (sumData.wallets || []).find(w => w.provider === "vodafone");
+    const oldBal = vf ? Number(vf.current_balance) : 0;
+    const expectedBal = isFake ? 99999 : oldBal + 500;
+    const body = `تم استلام مبلغ 500 جنيه من رقم 01055554444 رصيدك الحالي هو ${expectedBal} جنيه`;
+
+    await fetch(`${API_BASE}/api/v1/device/incoming-sms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        device_api_key: DEVICE_KEY,
+        sender: "VF-Cash",
+        body: body,
+        sim_slot: 1
+      })
+    });
+    await loadData();
+  }
+
+  async function confirmPayout(txId) {
+    const res = await fetch(`${API_BASE}/api/v1/transactions/${txId}/confirm-payout?commission=5`, {
+      method: "POST"
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.detail);
+      return;
+    }
+    await loadData();
+  }
+
+  let activeWS = null;
+  let reconnectTimer = null;
+
+  function connectWS() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    if (activeWS && (activeWS.readyState === WebSocket.OPEN || activeWS.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    const ws = new WebSocket(`wss://web-production-87f4ce5d.up.railway.app/ws/store/${STORE_ID}`);
+    activeWS = ws;
+    let pingTimer = null;
+
+    ws.onopen = () => {
+      document.getElementById("wsDot").style.background = "#22c55e";
+      document.getElementById("wsStatus").innerText = "متصل لحظياً بالسيرفر";
+      loadData();
+      pingTimer = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send("ping");
+        }
+      }, 20000);
+    };
+
+    ws.onmessage = (event) => {
+      if (event.data !== "pong") {
+        loadData();
+      }
+    };
+
+    ws.onerror = () => {
+      ws.close();
+    };
+
+    ws.onclose = () => {
+      if (pingTimer) clearInterval(pingTimer);
+      if (activeWS === ws) activeWS = null;
+      document.getElementById("wsDot").style.background = "#ef4444";
+      document.getElementById("wsStatus").innerText = "إعادة الاتصال...";
+      reconnectTimer = setTimeout(connectWS, 2000);
+    };
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      loadData();
+      if (!activeWS || activeWS.readyState !== WebSocket.OPEN) {
+        connectWS();
+      }
+    }
+  });
+
+  window.addEventListener("online", () => {
+    loadData();
+    connectWS();
+  });
+
+  loadData();
+  connectWS();
+</script>
+</body>
+</html>
