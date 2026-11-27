@@ -105,6 +105,7 @@
 
     .main-grid { display: grid; grid-template-columns: 370px 1fr; gap: 20px; }
     .two-col-grid { display: grid; grid-template-columns: 420px 1fr; gap: 20px; }
+    .pos-stack { display: flex; flex-direction: column; gap: 18px; }
 
     @media (max-width: 960px) {
       .app-layout { grid-template-columns: 1fr; }
@@ -132,6 +133,8 @@
     .btn-success { background: var(--success); color: #052e16; }
     .btn-warning { background: var(--warning); color: #451a03; }
     .btn-danger { background: var(--danger); color: white; }
+    .btn-muted { background: #334155; color: #f8fafc; }
+    .btn-muted.active-period { background: var(--primary); color: #fff; }
     .btn-sm { padding: 6px 10px; font-size: 12px; }
     .row-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -149,6 +152,14 @@
     .shift-banner {
       background: #0f172a; border: 1px solid var(--border); border-radius: 10px;
       padding: 12px; margin-bottom: 12px; font-size: 13px;
+    }
+    .toolbar-row {
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
+    }
+    @media print {
+      header, aside.sidebar, .sim-bar, .no-print { display: none !important; }
+      body { background: #fff; color: #000; }
+      .card { background: #fff; color: #000; border: 1px solid #ccc; }
     }
   </style>
 </head>
@@ -175,6 +186,10 @@
       <span>🏠</span>
       <span>العمليات والمحافظ</span>
     </button>
+    <button class="nav-btn" id="nav-pos" onclick="switchSection('pos')">
+      <span>🏧</span>
+      <span>مكن الدفع</span>
+    </button>
     <button class="nav-btn" id="nav-shift" onclick="switchSection('shift')">
       <span>⏱️</span>
       <span>الوردية</span>
@@ -190,6 +205,10 @@
     <button class="nav-btn" id="nav-expenses" onclick="switchSection('expenses')">
       <span>🧾</span>
       <span>مصروفات المحل</span>
+    </button>
+    <button class="nav-btn" id="nav-reports" onclick="switchSection('reports')">
+      <span>📈</span>
+      <span>التقارير والفلاتر</span>
     </button>
   </aside>
 
@@ -277,7 +296,89 @@
       </div>
     </section>
 
-    <!-- قسم 2: الوردية -->
+    <!-- قسم 2: مكن الدفع -->
+    <section class="section-view" id="view-pos">
+      <div class="grid-cards" id="posMachinesCards"></div>
+
+      <div class="two-col-grid">
+        <div class="pos-stack">
+          <div class="card">
+            <h3 style="margin-top:0;">💳 تنفيذ عملية دفع / فواتير من الماكينة</h3>
+            <label>اختر الماكينة</label>
+            <select id="posTxMachineSelect"></select>
+
+            <label>اسم الخدمة / البيان</label>
+            <input type="text" id="posServiceInput" placeholder="مثال: شحن كهرباء / فواتير / شحن رصيد" />
+
+            <div class="row-inline">
+              <div>
+                <label>مبلغ العملية (ج.م)</label>
+                <input type="number" id="posAmountInput" placeholder="مثال: 250" />
+              </div>
+              <div>
+                <label>العمولة (ج.م)</label>
+                <input type="number" id="posCommissionInput" value="5" />
+              </div>
+            </div>
+
+            <button class="btn-success" style="width:100%; margin-top:14px;" onclick="submitPosTransaction()">تسجيل عملية الماكينة</button>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top:0;">🔋 شحن رصيد ماكينة من الدرج</h3>
+            <label>اختر الماكينة</label>
+            <select id="posTopupMachineSelect"></select>
+
+            <label>مبلغ الشحن (ج.م)</label>
+            <input type="number" id="posTopupAmountInput" placeholder="مثال: 5000" />
+
+            <button class="btn-warning" style="width:100%; margin-top:14px;" onclick="topupPosMachine()">شحن الرصيد وخصمه من الدرج</button>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top:0;">➕ إضافة ماكينة دفع جديدة</h3>
+            <label>اسم الماكينة</label>
+            <input type="text" id="posNameInput" placeholder="مثال: ماكينة أمان / فوري 2" />
+
+            <div class="row-inline">
+              <div>
+                <label>الشركة</label>
+                <select id="posProviderInput">
+                  <option value="fawry">فوري</option>
+                  <option value="aman">أمان</option>
+                  <option value="pos">POS / أخرى</option>
+                </select>
+              </div>
+              <div>
+                <label>رصيد افتتاحي (ج.م)</label>
+                <input type="number" id="posInitBalInput" value="0" />
+              </div>
+            </div>
+
+            <button class="btn-primary" onclick="addPosMachine()">+ إضافة الماكينة</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">📜 سجل عمليات مكن الدفع</h3>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>الماكينة</th>
+                  <th>الخدمة</th>
+                  <th>المبلغ</th>
+                  <th>العمولة</th>
+                </tr>
+              </thead>
+              <tbody id="posTxTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- قسم 3: الوردية -->
     <section class="section-view" id="view-shift">
       <div class="two-col-grid">
         <div class="card">
@@ -326,7 +427,7 @@
       </div>
     </section>
 
-    <!-- قسم 3: حدود المحافظ -->
+    <!-- قسم 4: حدود المحافظ -->
     <section class="section-view" id="view-limits">
       <div class="two-col-grid">
         <div class="card">
@@ -366,7 +467,7 @@
       </div>
     </section>
 
-    <!-- قسم 4: عملاء الآجل -->
+    <!-- قسم 5: عملاء الآجل -->
     <section class="section-view" id="view-credit">
       <div class="two-col-grid">
         <div class="card">
@@ -445,7 +546,7 @@
       </div>
     </section>
 
-    <!-- قسم 5: مصروفات المحل -->
+    <!-- قسم 6: مصروفات المحل -->
     <section class="section-view" id="view-expenses">
       <div class="two-col-grid">
         <div class="card">
@@ -475,6 +576,63 @@
         </div>
       </div>
     </section>
+
+    <!-- قسم 7: التقارير والفلاتر الزمنية -->
+    <section class="section-view" id="view-reports">
+      <div class="card" style="margin-bottom:18px;">
+        <div class="toolbar-row no-print">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn-muted active-period" id="period-all" onclick="setReportPeriod('all')">الكل</button>
+            <button class="btn-muted" id="period-today" onclick="setReportPeriod('today')">اليوم</button>
+            <button class="btn-muted" id="period-yesterday" onclick="setReportPeriod('yesterday')">الأمس</button>
+            <button class="btn-muted" id="period-week" onclick="setReportPeriod('week')">آخر 7 أيام</button>
+            <button class="btn-muted" id="period-month" onclick="setReportPeriod('month')">هذا الشهر</button>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn-success btn-sm" onclick="exportFilteredCsv()">تصدير CSV (Excel)</button>
+            <button class="btn-primary btn-sm" style="width:auto; margin-top:0;" onclick="window.print()">طباعة التقرير</button>
+          </div>
+        </div>
+
+        <div class="grid-cards" style="margin-bottom:0;">
+          <div class="card" style="background:#0f172a;">
+            <h4>عدد عمليات الفترة</h4>
+            <div class="val" id="repTxCount">0</div>
+          </div>
+          <div class="card" style="background:#0f172a;">
+            <h4>إجمالي مبالغ الفترة</h4>
+            <div class="val" id="repTxAmount">0.00 ج.م</div>
+          </div>
+          <div class="card" style="background:#0f172a;">
+            <h4>عمولات الفترة</h4>
+            <div class="val" style="color:var(--success);" id="repCommissions">0.00 ج.م</div>
+          </div>
+          <div class="card" style="background:#0f172a;">
+            <h4>صافي ربح الفترة</h4>
+            <div class="val" style="color:#38bdf8;" id="repNetProfit">0.00 ج.م</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">📑 تفاصيل عمليات الفترة المحددة</h3>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>النوع</th>
+                <th>المحفظة</th>
+                <th>رقم العميل</th>
+                <th>المبلغ</th>
+                <th>العمولة</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -483,11 +641,16 @@
   const STORE_ID = "store-demo-01";
   const DEVICE_KEY = "cs_live_demo_key_123456";
   let currentWallets = [];
+  let currentPeriod = "all";
+  let lastFilteredTxs = [];
 
   const providerNames = {
     vodafone: "فودافون كاش",
     etisalat: "اتصالات كاش",
-    instapay: "إنستا باي"
+    instapay: "إنستا باي",
+    fawry: "فوري",
+    aman: "أمان",
+    pos: "POS"
   };
 
   function switchSection(sectionName) {
@@ -497,6 +660,14 @@
     const targetBtn = document.getElementById(`nav-${sectionName}`);
     if (targetView) targetView.classList.add("active");
     if (targetBtn) targetBtn.classList.add("active");
+  }
+
+  function setReportPeriod(period) {
+    currentPeriod = period;
+    document.querySelectorAll(".btn-muted[id^='period-']").forEach(b => b.classList.remove("active-period"));
+    const activeBtn = document.getElementById(`period-${period}`);
+    if (activeBtn) activeBtn.classList.add("active-period");
+    loadData();
   }
 
   function calcCommission() {
@@ -528,6 +699,28 @@
     if (!w) return;
     document.getElementById("dailyLimitInput").value = Number(w.daily_limit || 50000);
     document.getElementById("monthlyLimitInput").value = Number(w.monthly_limit || 200000);
+  }
+
+  function exportFilteredCsv() {
+    const rows = [["النوع", "المحفظة", "رقم العميل", "المبلغ", "العمولة", "الحالة"]];
+    lastFilteredTxs.forEach(tx => {
+      rows.push([
+        tx.tx_type === "withdraw" ? "استلام تحويل (سحب)" : "إيداع لعميل",
+        providerNames[tx.provider] || tx.provider,
+        tx.client_phone,
+        tx.amount,
+        tx.commission,
+        tx.status
+      ]);
+    });
+    const csvContent = "\uFEFF" + rows.map(r => r.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cash-store-report-${currentPeriod}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function saveWalletLimits() {
@@ -596,18 +789,88 @@
     await loadData();
   }
 
+  async function addPosMachine() {
+    const name = document.getElementById("posNameInput").value.trim();
+    const provider = document.getElementById("posProviderInput").value;
+    const initial_balance = parseFloat(document.getElementById("posInitBalInput").value || 0);
+    if (!name) {
+      alert("من فضلك أدخل اسم الماكينة");
+      return;
+    }
+    const res = await fetch(`${API_BASE}/api/v1/pos/machines`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store_id: STORE_ID, name, provider, initial_balance })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.detail || "حدث خطأ");
+      return;
+    }
+    document.getElementById("posNameInput").value = "";
+    document.getElementById("posInitBalInput").value = "0";
+    await loadData();
+  }
+
+  async function topupPosMachine() {
+    const machine_id = document.getElementById("posTopupMachineSelect").value;
+    const amount = parseFloat(document.getElementById("posTopupAmountInput").value);
+    if (!machine_id || !amount || amount <= 0) {
+      alert("من فضلك اختر الماكينة وأدخل مبلغ الشحن");
+      return;
+    }
+    const res = await fetch(`${API_BASE}/api/v1/pos/topup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store_id: STORE_ID, machine_id, amount })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.detail || "حدث خطأ");
+      return;
+    }
+    document.getElementById("posTopupAmountInput").value = "";
+    await loadData();
+  }
+
+  async function submitPosTransaction() {
+    const machine_id = document.getElementById("posTxMachineSelect").value;
+    const service_name = document.getElementById("posServiceInput").value.trim() || "خدمة دفع / فواتير";
+    const amount = parseFloat(document.getElementById("posAmountInput").value);
+    const commission = parseFloat(document.getElementById("posCommissionInput").value || 0);
+    if (!machine_id || !amount || amount <= 0) {
+      alert("من فضلك اختر الماكينة وأدخل مبلغ العملية");
+      return;
+    }
+    const res = await fetch(`${API_BASE}/api/v1/pos/transactions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store_id: STORE_ID, machine_id, service_name, amount, commission })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.detail || "حدث خطأ");
+      return;
+    }
+    document.getElementById("posServiceInput").value = "";
+    document.getElementById("posAmountInput").value = "";
+    await loadData();
+  }
+
   async function loadData() {
     try {
       const select = document.getElementById("walletSelect");
       const settleWalletSelect = document.getElementById("settleWalletSelect");
       const limitWalletSelect = document.getElementById("limitWalletSelect");
       const creditCustSelect = document.getElementById("creditCustomerSelect");
+      const posTxSelect = document.getElementById("posTxMachineSelect");
+      const posTopupSelect = document.getElementById("posTopupMachineSelect");
 
       const previousSelectedId = select.value;
       const previousLimitWalletId = limitWalletSelect.value;
       const previousCustId = creditCustSelect.value;
 
-      const res = await fetch(`${API_BASE}/api/v1/stores/${STORE_ID}/summary`);
+      const res = await fetch(`${API_BASE}/api/v1/stores/${STORE_ID}/summary?period=${encodeURIComponent(currentPeriod)}`);
       const data = await res.json();
 
       document.getElementById("storeName").innerText = data.store.store_name;
@@ -620,7 +883,6 @@
         openDrawerInput.value = drawerNum;
       }
 
-      // حالة الوردية الحالية
       const activeShift = data.active_shift;
       const shiftBadge = document.getElementById("shiftHeaderBadge");
       const openBox = document.getElementById("openShiftBox");
@@ -743,7 +1005,39 @@
         `;
       });
 
-      // جدول الورديات
+      // مكن الدفع
+      const machines = data.pos_machines || [];
+      const posCards = document.getElementById("posMachinesCards");
+      posCards.innerHTML = "";
+      posTxSelect.innerHTML = "";
+      posTopupSelect.innerHTML = "";
+      machines.forEach(m => {
+        posCards.innerHTML += `
+          <div class="card">
+            <h4>🏧 ${m.name}</h4>
+            <div class="val">${Number(m.balance).toLocaleString()} ج.م</div>
+            <div class="sub">${providerNames[m.provider] || m.provider}</div>
+          </div>
+        `;
+        const mOpt = `<option value="${m.id}">${m.name} - الرصيد: ${Number(m.balance).toLocaleString()} ج</option>`;
+        posTxSelect.innerHTML += mOpt;
+        posTopupSelect.innerHTML += mOpt;
+      });
+
+      const posTxBody = document.getElementById("posTxTableBody");
+      posTxBody.innerHTML = "";
+      (data.pos_transactions || []).forEach(p => {
+        posTxBody.innerHTML += `
+          <tr>
+            <td>${p.machine_name}</td>
+            <td>${p.service_name}</td>
+            <td style="font-weight:700;">${Number(p.amount).toLocaleString()} ج.م</td>
+            <td style="color:var(--success); font-weight:700;">${Number(p.commission).toLocaleString()} ج.م</td>
+          </tr>
+        `;
+      });
+
+      // سجل الورديات
       const shiftsBody = document.getElementById("shiftsTableBody");
       shiftsBody.innerHTML = "";
       (data.shifts || []).forEach(s => {
@@ -807,6 +1101,30 @@
           <tr>
             <td>${e.title}</td>
             <td style="font-weight:700; color:#fbbf24;">${Number(e.amount).toLocaleString()} ج.م</td>
+          </tr>
+        `;
+      });
+
+      // التقارير والفلاتر الزمنية
+      document.getElementById("repTxCount").innerText = Number(metrics.period_tx_count || 0).toLocaleString();
+      document.getElementById("repTxAmount").innerText = `${Number(metrics.period_tx_amount || 0).toLocaleString()} ج.م`;
+      document.getElementById("repCommissions").innerText = `${Number(metrics.period_commissions || 0).toLocaleString()} ج.م`;
+      document.getElementById("repNetProfit").innerText = `${Number(metrics.period_net_profit || 0).toLocaleString()} ج.م`;
+
+      lastFilteredTxs = data.filtered_transactions || [];
+      const repBody = document.getElementById("reportTableBody");
+      repBody.innerHTML = "";
+      lastFilteredTxs.forEach(tx => {
+        const typeLabel = tx.tx_type === "withdraw" ? "⬇️ استلام تحويل (سحب)" : "⬆️ إيداع لعميل";
+        const statusText = tx.status === "completed" ? "مكتملة" : tx.status === "pending_payout" ? "بانتظار الصرف" : "تحذير رصيد";
+        repBody.innerHTML += `
+          <tr>
+            <td>${typeLabel}</td>
+            <td>${providerNames[tx.provider] || tx.provider}</td>
+            <td style="direction:ltr; text-align:right;">${tx.client_phone}</td>
+            <td style="font-weight:700;">${Number(tx.amount).toLocaleString()} ج.م</td>
+            <td>${Number(tx.commission).toLocaleString()} ج.م</td>
+            <td>${statusText}</td>
           </tr>
         `;
       });
